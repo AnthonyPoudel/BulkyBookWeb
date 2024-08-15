@@ -3,13 +3,14 @@ using Microsoft.AspNetCore.Mvc;
 using bulkyBookWeb.DataAccess.Data;
 using Bulky.DataAccess.Repository.IRepository;
 using Bulky.DataAccess.Repository;
+
 namespace bulkyBookWeb.Areas.Admin.Controllers
 {
     [Area("Admin")]
     public class CategoryController : Controller
     {
-        private readonly UnitOfWork _UnitOfWork;
-        public CategoryController(UnitOfWork UnitOfWork)
+        private readonly IUnitOfWork _UnitOfWork;
+        public CategoryController(IUnitOfWork UnitOfWork)
         {
             _UnitOfWork = UnitOfWork;
         }
