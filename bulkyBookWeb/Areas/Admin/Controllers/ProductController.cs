@@ -6,6 +6,8 @@ using Bulky.DataAccess.Repository;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Bulky.Models.ViewModels;
+using System.Reflection.Metadata;
+using Microsoft.AspNetCore.Hosting;
 
 namespace bulkyBookWeb.Areas.Admin.Controllers
 {
@@ -13,18 +15,20 @@ namespace bulkyBookWeb.Areas.Admin.Controllers
     public class ProductController : Controller
     {
         private readonly IUnitOfWork _UnitOfWork;
-        public ProductController(IUnitOfWork UnitOfWork)
+        private readonly IWebHostEnvironment _IWebhostEnvironment;
+        public ProductController(IUnitOfWork UnitOfWork, IWebHostEnvironment iWebhostEnvironment)
         {
             _UnitOfWork = UnitOfWork;
+            _IWebhostEnvironment = iWebhostEnvironment;
         }
         public IActionResult Index()
         {
             List<Product> ProductList = _UnitOfWork.Product.GetAll().ToList();
             return View(ProductList);
         }
-        public IActionResult Create()
+        public IActionResult Upsert(int? id)
         {
-            //Below mentioned code is commited because we are using ViewModel to pass the data to view insted of viewbag or viewdata and temdata.
+            //Below mentioned code is commented because we are using ViewModel to pass the data to view insted of viewbag or viewdata and temdata.
             //IEnumerable<SelectListItem> CategoryList = _UnitOfWork.Category.GetAll()
             //    .Select(i => new SelectListItem
             //    {
@@ -41,61 +45,53 @@ namespace bulkyBookWeb.Areas.Admin.Controllers
                 }),
                 Product = new Product()
             };
-            return View(productVM);
+            if(id ==null || id == 0)
+            {
+                //This will be true for Insert or Create    
+                return View(productVM);
+            }
+            else
+            {
+                //This will be true for update
+                productVM.Product = _UnitOfWork.Product.Get(u => u.Id == id);
+                return View (productVM);
+            }
+            
         }
         [HttpPost]
-        public IActionResult Create(ProductVM product)
+        public IActionResult Upsert(ProductVM productVM, IFormFile? file)
         {
             if (ModelState.IsValid)
             {
-                _UnitOfWork.Product.Add(product.Product);
+              String wwwRootPath = _IWebhostEnvironment.WebRootPath;
+                if (file!=null) { 
+                string fileName = Guid.NewGuid().ToString()+Path.GetExtension(file.FileName);
+                    string productPath = Path.Combine(wwwRootPath, @"Images/Product");
+                    using (var fileStream = new FileStream(Path.Combine(productPath, fileName), FileMode.Create))
+                    {
+                        file.CopyTo(fileStream);
+                    }
+                    productVM.Product.ImageURl =@"\Images\Product" + fileName;
+                        }
+                _UnitOfWork.Product.Add(productVM.Product);
                 _UnitOfWork.Save();
+                TempData["Success"] = "Product Added Successfully"; 
                 return RedirectToAction("Index", "Product");
             }
-            //else
-            //{
-
-            //    product.CategoryList = _UnitOfWork.Category.GetAll().Select(i => new SelectListItem
-            //        {
-            //            Text = i.Name,
-            //            Value = i.Id.ToString()
-
-            //    });
-            //    return View(product);
-            //}
+            else
+            {
+                productVM.CategoryList = _UnitOfWork.Category.GetAll().Select(i => new SelectListItem
+                {
+                    Text = i.Name,
+                    Value = i.Id.ToString()
+                });
+            }
             
-                return View();
+                return View(productVM);
             
 
         }
-        public IActionResult Edit(int id)
-        {
-            Product? product = _UnitOfWork.Product.Get(u => u.Id == id);
-            //Below mentioned are two other ways to find the product from database in order to edit or delete.
-            //Product product = _DbContext.Categories.FirstOrDefault(u => u.Id == id);
-            //Caegory product2 = _DbContext.Categories.Where(u => u.Id == id).FirstOrDefault();
-            if (product.Id == null || product.Id == 0)
-            {
-                return NotFound();
-            }
-            if (product == null)
-            {
-                return NotFound();
-            }
-            return View(product);
-
-        }
-        [HttpPost]
-        public IActionResult Edit(Product product)
-        {
-            if (ModelState.IsValid)
-            {
-                _UnitOfWork.Product.update(product);
-                _UnitOfWork.Save();
-                return RedirectToAction("Index", "Product");
-            }
-            return View(product);
-        }
+       
         public IActionResult Delete(int id)
         {
             return View();
